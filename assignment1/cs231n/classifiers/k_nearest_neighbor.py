@@ -8,7 +8,7 @@ class KNearestNeighbor(object):
 
   def train(self, X, y):
     """
-    Train the classifier. For k-nearest neighbors this is just 
+    Train the classifier. For k-nearest neighbors this is just
     memorizing the training data.
 
     Inputs:
@@ -19,7 +19,7 @@ class KNearestNeighbor(object):
     """
     self.X_train = X
     self.y_train = y
-    
+
   def predict(self, X, k=1, num_loops=0):
     """
     Predict labels for test data using this classifier.
@@ -33,7 +33,7 @@ class KNearestNeighbor(object):
 
     Returns:
     - y: A numpy array of shape (num_test,) containing predicted labels for the
-      test data, where y[i] is the predicted label for the test point X[i].  
+      test data, where y[i] is the predicted label for the test point X[i].
     """
     if num_loops == 0:
       dists = self.compute_distances_no_loops(X)
@@ -49,7 +49,7 @@ class KNearestNeighbor(object):
   def compute_distances_two_loops(self, X):
     """
     Compute the distance between each test point in X and each training point
-    in self.X_train using a nested loop over both the training data and the 
+    in self.X_train using a nested loop over both the training data and the
     test data.
 
     Inputs:
@@ -71,7 +71,9 @@ class KNearestNeighbor(object):
         # training point, and store the result in dists[i, j]. You should   #
         # not use a loop over dimension.                                    #
         #####################################################################
-        pass
+        diff = np.subtract(X[i, :], self.X_train[j, :])
+        square_sum = np.sum(np.square(diff))
+        dists[i, j] = square_sum
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
@@ -93,7 +95,8 @@ class KNearestNeighbor(object):
       # Compute the l2 distance between the ith test point and all training #
       # points, and store the result in dists[i, :].                        #
       #######################################################################
-      pass
+      diff = self.X_train - X[i]
+      dists[i] = np.sum(np.square(diff), axis=1)
       #######################################################################
       #                         END OF YOUR CODE                            #
       #######################################################################
@@ -108,7 +111,7 @@ class KNearestNeighbor(object):
     """
     num_test = X.shape[0]
     num_train = self.X_train.shape[0]
-    dists = np.zeros((num_test, num_train)) 
+    dists = np.zeros((num_test, num_train))
     #########################################################################
     # TODO:                                                                 #
     # Compute the l2 distance between all test points and all training      #
@@ -121,7 +124,21 @@ class KNearestNeighbor(object):
     # HINT: Try to formulate the l2 distance using matrix multiplication    #
     #       and two broadcast sums.                                         #
     #########################################################################
-    pass
+
+    # According to
+    # https://github.com/bruceoutdoors/CS231n/blob/master/assignment1/cs231n/classifiers/k_nearest_neighbor.py#L125
+    # the following approach doesn't work since
+    # broadcasting expands the array past memory limit
+
+    # new_X = X[:, np.newaxis]  # shape: num of test * 1 * D
+    # new_X_train = self.X_train[:, np.newaxis]  # shape: num of train * 1 * D
+    # rotated = np.rollaxis(new_X_train, -2)  # shape: 1 * num of train * D
+    # diff = new_X - rotated  # shape: num of test * num of train * D
+    # dists = np.sum(np.square(diff), axis=2)  # shape: num of test * num of train
+
+    # So instead we have to split (p-q)^2 to p^2 + q^2 - 2pq
+    dists = np.sqrt((X**2).sum(axis=1, keepdims=True) + (self.X_train**2).sum(axis=1) - 2 * X.dot(self.X_train.T))
+    
     #########################################################################
     #                         END OF YOUR CODE                              #
     #########################################################################
@@ -138,7 +155,7 @@ class KNearestNeighbor(object):
 
     Returns:
     - y: A numpy array of shape (num_test,) containing predicted labels for the
-      test data, where y[i] is the predicted label for the test point X[i].  
+      test data, where y[i] is the predicted label for the test point X[i].
     """
     num_test = dists.shape[0]
     y_pred = np.zeros(num_test)
@@ -153,7 +170,8 @@ class KNearestNeighbor(object):
       # neighbors. Store these labels in closest_y.                           #
       # Hint: Look up the function numpy.argsort.                             #
       #########################################################################
-      pass
+      k_nearest_indices = np.argsort(dists[i])[:k]
+      closest_y = self.y_train[k_nearest_indices]
       #########################################################################
       # TODO:                                                                 #
       # Now that you have found the labels of the k nearest neighbors, you    #
@@ -161,10 +179,11 @@ class KNearestNeighbor(object):
       # Store this label in y_pred[i]. Break ties by choosing the smaller     #
       # label.                                                                #
       #########################################################################
-      pass
+      unique, unique_counts = np.unique(closest_y, return_counts=True)
+      closest_y_mode = unique[np.argmax(unique_counts)]
+      y_pred[i] = closest_y_mode
       #########################################################################
-      #                           END OF YOUR CODE                            # 
+      #                           END OF YOUR CODE                            #
       #########################################################################
 
     return y_pred
-
