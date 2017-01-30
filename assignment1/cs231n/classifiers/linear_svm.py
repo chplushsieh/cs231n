@@ -51,7 +51,7 @@ def svm_loss_naive(W, X, y, reg):
 
   # Add regularization to the loss.
   loss += 0.5 * reg * np.sum(W * W)
-  dW += 2 * reg * W
+  dW += 0.5 * 2 * reg * W
 
   #############################################################################
   # TODO:                                                                     #
@@ -74,6 +74,7 @@ def svm_loss_vectorized(W, X, y, reg):
   """
   num_classes = W.shape[1]
   num_train = X.shape[0]
+  num_features = X.shape[1]
 
   loss = 0.0
   dW = np.zeros(W.shape) # initialize the gradient as zero
@@ -85,7 +86,7 @@ def svm_loss_vectorized(W, X, y, reg):
   #############################################################################
   scores = X.dot(W)
   syi = scores[np.arange(num_train), y]
-  scores = (scores.T - syi).T
+  scores = (scores.T - syi).T  # transpose for broadcasting
   scores = scores + 1
   scores[scores < 0] = 0  # max(0, ) operation
 
@@ -108,7 +109,22 @@ def svm_loss_vectorized(W, X, y, reg):
   # to reuse some of the intermediate values that you used to compute the     #
   # loss.                                                                     #
   #############################################################################
-  pass
+
+  dscores = np.zeros((num_train, num_classes))
+
+  # To compute d(data_loss) / dscores
+  dscores[scores > 0] = 1  # for j != yi
+  dscores[np.arange(num_train), y] = - np.sum(dscores, axis=1)  # for j==yi
+
+  # To compute ds / dW
+  new_X = X[:, :, np.newaxis]  # new_X.shape:  (500, 3073, 1)
+  new_dscores = dscores[:, np.newaxis, :]  # new_dscores.shape:  (500, 1, 10)
+  ds = new_X * new_dscores  # dsi.shape:  (500, 3073, 10)
+
+  ddata_loss = np.sum(ds, axis=0) / num_train
+  dW += ddata_loss
+  dW += 0.5 * 2 * reg * W  # d(reg_loss) / dW
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
