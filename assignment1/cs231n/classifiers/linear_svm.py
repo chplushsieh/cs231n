@@ -93,7 +93,7 @@ def svm_loss_vectorized(W, X, y, reg):
   scores[np.arange(num_train), y] = 0  # for j==yi
   data_loss = np.sum(scores) / num_train
 
-  reg_loss = 0.5 * reg * np.sum(W ** 2)
+  reg_loss = 0.5 * reg * np.sum(W * W)
   loss = data_loss + reg_loss
   #############################################################################
   #                             END OF YOUR CODE                              #
