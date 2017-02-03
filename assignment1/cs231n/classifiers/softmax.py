@@ -36,25 +36,24 @@ def softmax_loss_naive(W, X, y, reg):
 
   score = X.dot(W)
   for i in xrange(num_train):
-    sigma_esj = 0
-    for j in xrange(num_class):
-      sigma_esj += np.exp(score[i, j])
-
-    syi = score[i, y[i]]
-    pyi = np.exp(syi) / sigma_esj
-    loss = - np.log(pyi) # natural log
+    es = [ np.exp(score[i, j]) for j in xrange(num_class) ]
+    sigma_es = np.sum(es)
+    pyi = es[y[i]] / sigma_es
+    loss += - np.log(pyi) # natural log
 
     # compute gradient
     # ref: http://math.stackexchange.com/questions/945871/derivative-of-softmax-loss-function
-    for j in xrange(num_class):
-      if j == y[i]:
-        ds = pyi - 1
-      else
-        pj = np.exp(score[i, j]) / sigma_esj
-        ds = pj
+    ds = [ es[j] / sigma_es for j in xrange(num_class) ]
+    ds[y[i]] -= 1
 
-      dW = # ds * X[i]  # TODO
+    dW += np.outer(X[i], ds)
 
+  dW /= num_train
+  loss /= num_train
+
+  # Add regularization
+  loss += 0.5 * reg * np.sum(W * W)
+  dW += 0.5 * 2 * reg * W
 
   #############################################################################
   #                          END OF YOUR CODE                                 #
