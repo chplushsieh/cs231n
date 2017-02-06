@@ -78,7 +78,37 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  num_train = X.shape[0]
+  dim = X.shape[1]
+  num_class = W.shape[1]
+
+  score = X.dot(W)
+
+  es = np.exp(score)
+  sigma_es = np.sum(es, axis=1)
+  p = es / (sigma_es[:, np.newaxis])
+
+  # compute loss
+  esy = es[np.arange(num_train), y]
+  py = esy / sigma_es
+  L = - np.log(py)
+  loss = np.sum(L) / num_train
+
+  # compute dL / dscores
+  ds = p
+  ds[np.arange(num_train), y] -= 1
+
+  # compute dL / dW
+  X = X[:, :, np.newaxis]
+  ds = ds[:, np.newaxis, :]
+  dLdW = X * ds
+
+  dW += np.sum(dLdW, axis=0)
+  dW /= num_train
+
+  # Add regularization
+  loss += 0.5 * reg * np.sum(W * W)
+  dW += 0.5 * 2 * reg * W
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
