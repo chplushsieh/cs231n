@@ -74,11 +74,17 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    pass
+    s1 = X.dot(W1) + b1 # layer 1 scores
+
+    X2 = s1
+    X2[s1 < 0] = 0 # ReLU
+
+    scores = X2.dot(W2) + b2 # layer 2 scores
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
-    
+
     # If the targets are not given then jump out, we're done
     if y is None:
       return scores
@@ -92,7 +98,23 @@ class TwoLayerNet(object):
     # classifier loss. So that your results match ours, multiply the            #
     # regularization loss by 0.5                                                #
     #############################################################################
-    pass
+    loss = 0
+
+    # compute data loss (use the Softmax classifier loss)
+    es = np.exp(scores)
+    sigma_es = np.sum(es, axis=1)
+    esy = es[np.arange(N), y]
+    py = esy / sigma_es
+    L = - np.log(py)
+
+    loss += np.sum(L) / N
+
+    # compute L2 regularization for W1 and W2
+    L2 = np.sum(W1 * W1) + np.sum(W2 * W2)
+
+    # multiply the regularization loss by 0.5
+    loss += 0.5 * reg * L2
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -104,7 +126,32 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    pass
+    # TODO figure out shapes of all folowwing variables
+    # compute dL / ds
+    dL_ds = py
+    dL_ds[np.arange(N), y] -= 1
+
+    ds_dW2 = X2 # compute ds / dW2
+    ds_dX2 = W2 # compute ds / dX2
+
+    # compute dX2 / ds1
+    dX2_ds1 = np.zeros(s1.shape)
+    dX2_ds1[s1 > 0] = 1
+
+    ds1_dW1 = X # compute ds1 / dW1
+
+    # compute ds2 / db2
+    ds_db2 = 1
+
+    # compute ds1 / db1
+    ds1_db1 = 1
+
+    # compute all gradients
+    grads['W1'] = dL_ds * ds_dX2 * dX2_ds1 * ds1_dW1
+    grads['b1'] = dL_ds * ds_dX2 * dX2_ds1 * ds1_db1
+    grads['W2'] = dL_ds * ds_dW2
+    grads['b2'] = dL_ds * ds_db2
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -214,5 +261,3 @@ class TwoLayerNet(object):
     ###########################################################################
 
     return y_pred
-
-
