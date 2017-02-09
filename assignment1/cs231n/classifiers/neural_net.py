@@ -66,6 +66,10 @@ class TwoLayerNet(object):
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
     N, D = X.shape
+    # print "N: ", N
+    # print "D: ", D
+    # print "H: ", W2.shape[0]
+    # print "C: ", W2.shape[1]
 
     # Compute the forward pass
     scores = None
@@ -78,8 +82,10 @@ class TwoLayerNet(object):
 
     X2 = s1
     X2[s1 < 0] = 0 # ReLU
+    # print "X2: ", X2.shape
 
     scores = X2.dot(W2) + b2 # layer 2 scores
+    # print "scores (s2): ", scores.shape
 
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -103,8 +109,8 @@ class TwoLayerNet(object):
     # compute data loss (use the Softmax classifier loss)
     es = np.exp(scores)
     sigma_es = np.sum(es, axis=1)
-    esy = es[np.arange(N), y]
-    py = esy / sigma_es
+    p = es / sigma_es[:, np.newaxis]
+    py = p[np.arange(N), y]
     L = - np.log(py)
 
     loss += np.sum(L) / N
@@ -126,31 +132,57 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    # TODO figure out shapes of all folowwing variables
+
     # compute dL / ds
-    dL_ds = py
+    dL_ds = p
     dL_ds[np.arange(N), y] -= 1
+    # print "dL_ds:", dL_ds.shape
 
     ds_dW2 = X2 # compute ds / dW2
+    # print "ds_dW2:", ds_dW2.shape, " (used with outer product)"
     ds_dX2 = W2 # compute ds / dX2
+    # print "ds_dX2:", ds_dX2.shape
 
     # compute dX2 / ds1
     dX2_ds1 = np.zeros(s1.shape)
     dX2_ds1[s1 > 0] = 1
+    # print "dX2_ds1:", dX2_ds1.shape
 
     ds1_dW1 = X # compute ds1 / dW1
+    # print "ds1_dW1:", ds1_dW1.shape, " (used with outer product)"
 
     # compute ds2 / db2
     ds_db2 = 1
+    # print "ds_db2:", ds_db2.shape
 
     # compute ds1 / db1
     ds1_db1 = 1
+    # print "ds1_db1:", ds1_db1.shape
 
     # compute all gradients
-    grads['W1'] = dL_ds * ds_dX2 * dX2_ds1 * ds1_dW1
-    grads['b1'] = dL_ds * ds_dX2 * dX2_ds1 * ds1_db1
-    grads['W2'] = dL_ds * ds_dW2
+    dL_ds1 = dL_ds.dot(ds_dX2.T) * dX2_ds1
+    # print "dL_ds1: ", dL_ds1.shape
+
+    grads['W1'] = dL_ds1[:, np.newaxis, :] * ds1_dW1[:, :, np.newaxis]
+    grads['b1'] = dL_ds.dot(ds_dX2.T) * dX2_ds1 * ds1_db1
+    grads['W2'] = dL_ds[:, np.newaxis, :] * ds_dW2[:, :, np.newaxis]
     grads['b2'] = dL_ds * ds_db2
+
+    # take average of the gradients of minbatch data points
+    grads['W1'] = np.sum(grads['W1'], axis = 0) / N
+    grads['b1'] = np.sum(grads['b1'], axis = 0) / N
+    grads['W2'] = np.sum(grads['W2'], axis = 0) / N
+    grads['b2'] = np.sum(grads['b2'], axis = 0) / N
+
+    # print "grads['W1']: ", grads['W1'].shape
+    # print "grads['b1']: ", grads['b1'].shape
+    # print "grads['W2']: ", grads['W2'].shape
+    # print "grads['b2']: ", grads['b2'].shape
+
+    # add regulation
+    grads['W2'] += 2 * 0.5 * reg * W2
+    grads['W1'] += 2 * 0.5 * reg * W1
+
 
     #############################################################################
     #                              END OF YOUR CODE                             #
