@@ -185,13 +185,14 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     # storing your result in the running_mean and running_var variables.        #
     #############################################################################
 
-    # TODO consider shape
     mean = np.sum(x, axis=0) / N # D
-    var = (x - mean) ** 2 / N # D
-    xhat = x - mean / np.sqrt(var + eps)
-    y = gamma * xhat + beta
+    var = np.sum((x - mean) ** 2, axis=0) / N # D
+    xhat = (x - mean) / np.sqrt(var + eps)  # N x D
+    y = gamma * xhat + beta  # N x D
+    out = y
 
-    # TODO compute running statistics
+    running_mean = momentum * running_mean + (1 - momentum) * mean
+    running_var = momentum * running_var + (1 - momentum) * var
 
     #############################################################################
     #                             END OF YOUR CODE                              #
