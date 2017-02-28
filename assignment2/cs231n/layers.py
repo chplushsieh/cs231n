@@ -204,9 +204,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     # and shift the normalized data using gamma and beta. Store the result in   #
     # the out variable.                                                         #
     #############################################################################
-    pass
-    # running_mean
-    # running_var
+    xhat = (x - running_mean) / np.sqrt(running_var + eps)  # N x D
+    y = gamma * xhat + beta  # N x D
+    out = y
 
     #############################################################################
     #                             END OF YOUR CODE                              #
