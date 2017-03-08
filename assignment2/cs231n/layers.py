@@ -504,11 +504,56 @@ def conv_backward_naive(dout, cache):
   - dw: Gradient with respect to w
   - db: Gradient with respect to b
   """
-  dx, dw, db = None, None, None
+  x, w, b, conv_param = cache
+  stride, pad = conv_param['stride'], conv_param['pad']
+
+  N, C, H, W = x.shape
+  F, _, HH, WW = w.shape # F x C x HH x WW
+  _, _, Hout, Wout = dout.shape # N x F x Hout x Wout
+
+  print 'N:', N
+  print 'C:', C
+  print 'H:', H
+  print 'W:', W
+  print 'F:', F
+  print 'HH:', HH
+  print 'WW:', WW
+
+  dx, dw, db = np.zeros(x.shape), np.zeros(w.shape), np.zeros(b.shape)
   #############################################################################
   # TODO: Implement the convolutional backward pass.                          #
   #############################################################################
-  pass
+
+  # DONE computed dx
+  # TODO compute dw, db
+
+  padded_dx = np.pad(dx,
+                    ((0,), (0,), (pad,), (pad,)),
+                    'constant', constant_values=0)
+
+  for out_row in range(Hout):
+    row = out_row * stride
+
+    for out_col in range(Wout):
+      col = out_col * stride
+
+      # print '\n(out_row, out_col):', out_row, out_col
+      # print '(row, col):', row, col
+
+      cur_dout = dout[:, :, out_row, out_col]
+      cur_dout = cur_dout[:, :, np.newaxis, np.newaxis, np.newaxis]
+      # N x F x 1 x 1 x 1
+
+      new_w = w[np.newaxis, :, :, :, :] # 1 x F x C x HH x WW
+
+      product = cur_dout * new_w # N x F x C x HH x WW
+      product = np.sum(product, axis=1) # N x C x HH x WW
+
+      padded_dx[:, :, row:row+HH, col:col+WW] += product # N x C x (H+2*pad) x (W+2*pad)
+
+  # unpad dx
+  dx = padded_dx[:, :, pad:pad+H, pad:pad+W]
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
