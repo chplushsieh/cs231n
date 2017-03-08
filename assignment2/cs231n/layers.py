@@ -444,37 +444,48 @@ def conv_forward_naive(x, w, b, conv_param):
   N, C, H, W = x.shape
   F, _, HH, WW = w.shape
 
+  # print 'N:', N
+  # print 'C:', C
+  # print 'H:', H
+  # print 'W:', W
+  # print 'F:', F
+  # print 'HH:', HH
+  # print 'WW:', WW
+
   out = None
   #############################################################################
   # TODO: Implement the convolutional forward pass.                           #
   # Hint: you can use the function np.pad for padding.                        #
   #############################################################################
 
-  # TODO first just implement it without pad and stride
-  Hout = 1 + (H - HH)
-  Wout = 1 + (W - WW)
+  Hout = 1 + (H + 2 * pad - HH) / stride
+  Wout = 1 + (W + 2 * pad - WW) / stride
+  # print 'Hout:', Wout
+  # print 'Wout:', Wout
+
+  padded_x = np.pad(x,
+                    ((0,), (0,), (pad,), (pad,)),
+                    'constant', constant_values=0)
+  # print 'padded_x:', padded_x.shape
+  out = np.zeros((N, F, Hout, Wout))
+
+  w_reshaped = np.reshape(w, (F, C * HH * WW)).T
 
   for out_row in range(Hout):
+    row = out_row * stride
+
     for out_col in range(Wout):
+      col = out_col * stride
 
-      row = out_row + (HH - 1) / 2
-      col = out_col + (WW - 1) / 2
+      # print '(row, col):', row, col
+      # (row, col) is the top left corner of conv area
+      conv_area = padded_x[:, :, row:row+WW, col:col+HH]  # N x C x HH x WW
 
-      row_high = row + (HH - 1) / 2
-      col_high = col + (WW - 1) / 2
-
-      row_low  = row - (HH - 1) / 2
-      col_low  = col - (WW - 1) / 2
-
-      for f in range(F):
-        cur_filter = w[f] # C x HH x WW
-        cur_bias = b[f]
-
-        conv_area = x[:][:][row_low:row_high+1][col_low:col_high+1]
-        out[:][f][out_row][out_col] = conv_area * w + b # TODO
+      conv_area_reshaped = np.reshape(conv_area, (N, C * HH * WW))
+      out[:,:, out_row, out_col] = conv_area_reshaped.dot(w_reshaped) + b
 
   #############################################################################
-  #                             END OF YOUR CODE                              #
+  #                             END OF YOUR thon                              #
   #############################################################################
   cache = (x, w, b, conv_param)
   return out, cache
