@@ -520,16 +520,24 @@ def conv_backward_naive(dout, cache):
   print 'WW:', WW
 
   dx, dw, db = np.zeros(x.shape), np.zeros(w.shape), np.zeros(b.shape)
+  # print 'dx:', dx.shape  # N x C x H x W
+  print 'dw:', dw.shape  # F x C x HH x WW
+  # print 'db:', db.shape  # F
   #############################################################################
   # TODO: Implement the convolutional backward pass.                          #
   #############################################################################
 
-  # DONE computed dx
-  # TODO compute dw, db
+  # Compute db
+  db = np.sum(dout, axis=(0, 2, 3))  # F
+
+  padded_x = np.pad(x,
+                    ((0,), (0,), (pad,), (pad,)),
+                    'constant', constant_values=0) # N x C x (H+2*pad) x (W+2*pad)
+  # print 'padded_x:', padded_x.shape
 
   padded_dx = np.pad(dx,
                     ((0,), (0,), (pad,), (pad,)),
-                    'constant', constant_values=0)
+                    'constant', constant_values=0) # N x C x (H+2*pad) x (W+2*pad)
 
   for out_row in range(Hout):
     row = out_row * stride
@@ -540,9 +548,9 @@ def conv_backward_naive(dout, cache):
       # print '\n(out_row, out_col):', out_row, out_col
       # print '(row, col):', row, col
 
+      # Compute dx
       cur_dout = dout[:, :, out_row, out_col]
-      cur_dout = cur_dout[:, :, np.newaxis, np.newaxis, np.newaxis]
-      # N x F x 1 x 1 x 1
+      cur_dout = cur_dout[:, :, np.newaxis, np.newaxis, np.newaxis]  # N x F x 1 x 1 x 1
 
       new_w = w[np.newaxis, :, :, :, :] # 1 x F x C x HH x WW
 
@@ -550,6 +558,12 @@ def conv_backward_naive(dout, cache):
       product = np.sum(product, axis=1) # N x C x HH x WW
 
       padded_dx[:, :, row:row+HH, col:col+WW] += product # N x C x (H+2*pad) x (W+2*pad)
+
+      # Compute dw
+      cur_padded_x = padded_x[:, :, row:row+HH, col:col+WW]  # N x C x HH x WW
+      cur_padded_x = cur_padded_x[:, np.newaxis, :, :, :]  # N x 1 x C x HH x WW
+      dw_update = cur_padded_x * cur_dout  # N x F x C x HH x WW
+      dw += np.sum(dw_update, axis=0)
 
   # unpad dx
   dx = padded_dx[:, :, pad:pad+H, pad:pad+W]
