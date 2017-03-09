@@ -589,11 +589,31 @@ def max_pool_forward_naive(x, pool_param):
   - out: Output data
   - cache: (x, pool_param)
   """
-  out = None
+  pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+
+  N, C, H, W = x.shape
+  # print 'N:', N
+  # print 'C:', C
+  # print 'H:', H
+  # print 'W:', W
+
+  out_height = (H - pool_height) / stride + 1
+  out_width  = (W - pool_width)  / stride + 1
+  out = np.zeros((N, C, out_height, out_width))
   #############################################################################
   # TODO: Implement the max pooling forward pass                              #
   #############################################################################
-  pass
+  for out_row in range(out_height):
+    row = out_row * stride
+    for out_col in range(out_width):
+      col = out_col * stride
+
+      # print '\n(out_row, out_col):', out_row, out_col
+      # print '(row, col):', row, col
+
+      out[:, :, out_row, out_col] = np.max(x[:, :, row:row+pool_height, col:col+pool_width], axis=(2, 3))
+
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -612,11 +632,44 @@ def max_pool_backward_naive(dout, cache):
   Returns:
   - dx: Gradient with respect to x
   """
-  dx = None
+  x, pool_param = cache
+
+  pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+
+  N, C, H, W = x.shape
+  _, _, out_height, out_width = dout.shape
+  # print 'N:', N
+  # print 'C:', C
+  # print 'H:', H
+  # print 'W:', W
+  # print 'out_height:', out_height
+  # print 'out_width:', out_width
+
+  dx = np.zeros(x.shape)
   #############################################################################
   # TODO: Implement the max pooling backward pass                             #
   #############################################################################
-  pass
+
+  for out_row in range(out_height):
+    row = out_row * stride
+    for out_col in range(out_width):
+      col = out_col * stride
+
+      cur_dout = dout[:, :, out_row, out_col]  # N x C
+
+      x_area = x[:, :, row:row+pool_height, col:col+pool_width] # N x C x pool_height x pool_width
+      reshaped_x_area = x_area.reshape((N, C, -1)) # N x C x (pool_height * pool_width)
+
+      dx_area = dx[:, :, row:row+pool_height, col:col+pool_width] # N x C x pool_height x pool_width
+      reshaped_dx_area = dx_area.reshape((N, C, -1)) # N x C x (pool_height * pool_width)
+
+      max_index = np.argmax(reshaped_x_area, axis=2) # N x C x 1
+      re_row, re_col = np.indices((N, C))
+      reshaped_dx_area[re_row, re_col, max_index] = cur_dout
+      shaped_back_dx_area = reshaped_dx_area.reshape((N, C, pool_height, pool_width))
+      dx[:, :, row:row+pool_height, col:col+pool_width] = shaped_back_dx_area
+
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
