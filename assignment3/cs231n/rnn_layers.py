@@ -235,13 +235,21 @@ def word_embedding_forward(x, W):
   - out: Array of shape (N, T, D) giving word vectors for all input words.
   - cache: Values needed for the backward pass
   """
+  N, T = x.shape
+  V, D = W.shape
+
   out, cache = None, None
   ##############################################################################
   # TODO: Implement the forward pass for word embeddings.                      #
   #                                                                            #
   # HINT: This should be very simple.                                          #
   ##############################################################################
-  pass
+
+  reshaped_x = x.reshape(N*T) # (N*T, )
+  reshaped_out = W[reshaped_x] # (N*T, D)
+  out = reshaped_out.reshape(N, T, D)
+
+  cache = x, reshaped_x, W
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -263,13 +271,22 @@ def word_embedding_backward(dout, cache):
   Returns:
   - dW: Gradient of word embedding matrix, of shape (V, D).
   """
+  x, reshaped_x, W = cache
+
+  N, T, D = dout.shape
+  V, _ = W.shape
+
   dW = None
   ##############################################################################
   # TODO: Implement the backward pass for word embeddings.                     #
   #                                                                            #
   # HINT: Look up the function np.add.at                                       #
   ##############################################################################
-  pass
+  dW = np.zeros((V, D))
+
+  reshaped_dout = dout.reshape(N*T, D)
+  np.add.at(dW, reshaped_x, reshaped_dout)
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
