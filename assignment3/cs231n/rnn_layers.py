@@ -307,6 +307,10 @@ def sigmoid(x):
   return top / (1 + z)
 
 
+def sigmoid_derivative(x):
+  return sigmoid(x) * (1 - sigmoid(x))
+
+
 def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
   """
   Forward pass for a single timestep of an LSTM.
@@ -336,7 +340,7 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
   #############################################################################
   h_score = prev_h.dot(Wh)
   x_score = x.dot(Wx)
-  score = h_score + x_score + b # (N, 4H)
+  score = h_score + x_score + b  # (N, 4H)
 
   i = sigmoid(score[:,    :  H])  # (N, H)
   f = sigmoid(score[:,   H:2*H])
@@ -346,6 +350,7 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
   next_c = f * prev_c + i * g
   next_h = o * np.tanh(next_c)
 
+  cache = prev_h, prev_c, Wx, Wh, b, i, f, o, g, x, score, next_h, next_c
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -370,6 +375,10 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
   - dWh: Gradient of hidden-to-hidden weights, of shape (H, 4H)
   - db: Gradient of biases, of shape (4H,)
   """
+  N, H = dnext_h.shape
+
+  prev_h, prev_c, Wx, Wh, b, i, f, o, g, x, score, next_h, next_c = cache
+
   dx, dh, dc, dWx, dWh, db = None, None, None, None, None, None
   #############################################################################
   # TODO: Implement the backward pass for a single timestep of an LSTM.       #
@@ -377,7 +386,46 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
   # HINT: For sigmoid and tanh you can compute local derivatives in terms of  #
   # the output value from the nonlinearity.                                   #
   #############################################################################
-  pass
+
+  # dnext_h depends from dnext_c in forward pass
+  dnext_c += o * (1 - np.tanh(next_c) ** 2) * dnext_h
+
+  dprev_c = dnext_c * f
+
+  di = dnext_c * g
+  dscore1 = di * i*(1-i)
+
+  df = dnext_c * prev_c
+  dscore2 = df * f*(1-f)
+
+  do = dnext_h * np.tanh(next_c)
+  dscore3 = do * o*(1-o)
+
+  dg = dnext_c * i
+  dscore4 =  dg * (1 - g**2)
+
+  dscore = np.concatenate((dscore1, dscore2, dscore3, dscore4), axis=1)  # (N, 4H)
+
+  # the following is similar to rnn step
+
+  db = np.sum(dscore, axis=0)  # (4H,)
+
+  dx_score = dscore  # (N, 4H)
+
+  dWx_per_datum = dx_score[:, np.newaxis, :] * x[:, :, np.newaxis]  # (N, D, 4H)
+  dWx = np.sum(dWx_per_datum, axis=0)  # (D, 4H)
+
+  dx_cross = dx_score[:, np.newaxis, :] * Wx[np.newaxis, :, :]  # (N, D, 4H)
+  dx = np.sum(dx_cross, axis=2)  # (N, D)
+
+  dh_score = dscore  # (N, 4H)
+
+  dWh_per_datum = dh_score[:, np.newaxis, :] * prev_h[:, :, np.newaxis]  # (N, H, 4H)
+  dWh = np.sum(dWh_per_datum, axis=0)  # (H, 4H)
+
+  dprev_h_cross = dh_score[:, np.newaxis, :] * Wh[np.newaxis, :, :]  # (N, H, 4H)
+  dprev_h = np.sum(dprev_h_cross, axis=2)  # (N, H)
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
