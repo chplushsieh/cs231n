@@ -142,6 +142,8 @@ class CaptioningRNN(object):
 
     if self.cell_type == 'rnn':
       h, rnn_cache = rnn_forward(x, h0, Wx, Wh, b) # (N, T, H)
+    else: # 'lstm'
+      h, lstm_cache = lstm_forward(x, h0, Wx, Wh, b)
 
     scores, aff_cache = temporal_affine_forward(h, W_vocab, b_vocab)  # (N, T, V)
     loss, dscores = temporal_softmax_loss(scores, captions_out, mask)
@@ -151,6 +153,8 @@ class CaptioningRNN(object):
 
     if self.cell_type == 'rnn':
       dx, dh0, dWx, dWh, db = rnn_backward(dh, rnn_cache)
+    else: # 'lstm'
+      dx, dh0, dWx, dWh, db = lstm_backward(dh, lstm_cache)
 
     dW_embed = word_embedding_backward(dx, emb_cache)
     dfeatures, dW_proj, db_proj = affine_backward(dh0, h0_cache)
@@ -201,6 +205,11 @@ class CaptioningRNN(object):
     Wx, Wh, b = self.params['Wx'], self.params['Wh'], self.params['b']
     W_vocab, b_vocab = self.params['W_vocab'], self.params['b_vocab']
 
+    H, _= Wh.shape
+    T = max_length
+    # print 'N:', N
+    # print 'T:', T
+
     ###########################################################################
     # TODO: Implement test-time sampling for the model. You will need to      #
     # initialize the hidden state of the RNN by applying the learned affine   #
@@ -222,24 +231,27 @@ class CaptioningRNN(object):
     # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
     # a loop.                                                                 #
     ###########################################################################
-    T = max_length
 
-    # print 'N:', N
-    # print 'T:', T
     h0, h0_cache = affine_forward(features, W_proj, b_proj)  # (N, H)
 
     ht = h0
+    prev_c = np.zeros((N, H))  # for lstm
     prev_word = self._start * np.ones((N, 1), dtype=np.int32) # N
 
     for t in range(T):
       embedded_word, _ = word_embedding_forward(prev_word, W_embed)  # (N, 1, W)
       embedded_word = embedded_word.reshape((N, -1))  # (N, W)
 
-      h_next, _ = rnn_step_forward(embedded_word, ht, Wx, Wh, b)  # (N, V)
-      ht = h_next  # update for next round
-      h_next = h_next[:, np.newaxis, :]  # (N, 1, V)
+      if self.cell_type == 'rnn':
+        next_h, _ = rnn_step_forward(embedded_word, ht, Wx, Wh, b)  # (N, V)
+      else: # 'lstm'
+        next_h, next_c, _ = lstm_step_forward(embedded_word, ht, prev_c, Wx, Wh, b)
+        next_c = prev_c
 
-      scores, _ = temporal_affine_forward(h_next, W_vocab, b_vocab)  # (N, 1, W)
+      ht = next_h  # update for next round
+      next_h = next_h[:, np.newaxis, :]  # (N, 1, V)
+
+      scores, _ = temporal_affine_forward(next_h, W_vocab, b_vocab)  # (N, 1, W)
       next_word = scores.argmax(axis=2)  # (N, 1)
 
       prev_word = next_word  # update for next round

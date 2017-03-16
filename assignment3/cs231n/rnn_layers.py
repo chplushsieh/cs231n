@@ -455,12 +455,32 @@ def lstm_forward(x, h0, Wx, Wh, b):
   - h: Hidden states for all timesteps of all sequences, of shape (N, T, H)
   - cache: Values needed for the backward pass.
   """
+  N, T, D = x.shape
+  _, H = h0.shape
+
   h, cache = None, None
   #############################################################################
   # TODO: Implement the forward pass for an LSTM over an entire timeseries.   #
   # You should use the lstm_step_forward function that you just defined.      #
   #############################################################################
-  pass
+  h = np.zeros((N, T, H))
+  step_cache = [None] * T
+
+  prev_h = h0
+  prev_c = np.zeros((N, H))
+
+  for t in range(T):
+    xt = x[:, t, :]
+    next_h, next_c, cache_t = lstm_step_forward(xt, prev_h, prev_c, Wx, Wh, b)
+
+    h[:, t, :] = next_h
+    step_cache[t] = cache_t
+
+    # udpate for next round
+    prev_h = next_h
+    prev_c = next_c
+
+  cache = step_cache, D
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -483,12 +503,41 @@ def lstm_backward(dh, cache):
   - dWh: Gradient of hidden-to-hidden weight matrix of shape (H, 4H)
   - db: Gradient of biases, of shape (4H,)
   """
+  step_cache, D = cache
+  N, T, H = dh.shape
+
+
   dx, dh0, dWx, dWh, db = None, None, None, None, None
   #############################################################################
   # TODO: Implement the backward pass for an LSTM over an entire timeseries.  #
   # You should use the lstm_step_backward function that you just defined.     #
   #############################################################################
-  pass
+
+  dx = np.zeros((N, T, D))
+  dWx = np.zeros((D, 4*H))
+  dWh = np.zeros((H, 4*H))
+  db = np.zeros((4*H,))
+
+  # prepare for first round
+  dnext_h = np.zeros((N, H))
+  dnext_c = np.zeros((N, H))
+
+  for t in reversed(range(T)):
+    dnext_h += dh[:, t, :]
+
+    dxt, dprev_h, dprev_c, dWxt, dWht, dbt = lstm_step_backward(dnext_h, dnext_c, step_cache[t])
+
+    # update outputs
+    dx[:, t, :] += dxt
+    dWx += dWxt
+    dWh += dWht
+    db += dbt
+
+    # update for next round
+    dnext_c = dprev_c
+    dnext_h = dprev_h
+
+  dh0 = dnext_h
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
